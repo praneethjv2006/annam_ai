@@ -1,0 +1,31 @@
+{
+  "version": 1,
+  "paths": {
+    "/users123456": {
+      "name": "/users123456",
+      "lambdaFunction": "annamUsers123456Function",
+      "permissions": {
+        "setting": "private",
+        "auth": [
+          "create",
+          "read",
+          "update",
+          "delete"
+        ]
+      }
+    },
+    "/crops123456": {
+      "name": "/crops123456",
+      "lambdaFunction": "annamCrops123456Function",
+      "permissions": {
+        "setting": "private",
+        "auth": [
+          "create",
+          "read",
+          "update",
+          "delete"
+        ]
+      }
+    }
+  }
+}

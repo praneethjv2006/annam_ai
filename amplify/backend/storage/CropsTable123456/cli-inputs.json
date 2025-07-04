@@ -1,0 +1,10 @@
+{
+  "resourceName": "CropsTable123456",
+  "tableName": "CropsTable123456",
+  "partitionKey": {
+    "fieldName": "cropId",
+    "fieldType": "string"
+  },
+  "gsi": [],
+  "triggerFunctions": []
+}

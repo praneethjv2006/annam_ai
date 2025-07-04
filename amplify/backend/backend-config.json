@@ -1,0 +1,139 @@
+{
+  "api": {
+    "annamai": {
+      "dependsOn": [
+        {
+          "attributes": [
+            "Name",
+            "Arn"
+          ],
+          "category": "function",
+          "resourceName": "annamUsers123456Function"
+        },
+        {
+          "attributes": [
+            "Name",
+            "Arn"
+          ],
+          "category": "function",
+          "resourceName": "annamCrops123456Function"
+        }
+      ],
+      "providerPlugin": "awscloudformation",
+      "service": "API Gateway"
+    }
+  },
+  "auth": {
+    "annamai1724b4ef": {
+      "customAuth": false,
+      "dependsOn": [],
+      "frontendAuthConfig": {
+        "mfaConfiguration": "OFF",
+        "mfaTypes": [
+          "SMS"
+        ],
+        "passwordProtectionSettings": {
+          "passwordPolicyCharacters": [],
+          "passwordPolicyMinLength": 8
+        },
+        "signupAttributes": [
+          "EMAIL"
+        ],
+        "socialProviders": [],
+        "usernameAttributes": [
+          "EMAIL",
+          "PHONE_NUMBER"
+        ],
+        "verificationMechanisms": [
+          "EMAIL"
+        ]
+      },
+      "providerPlugin": "awscloudformation",
+      "service": "Cognito"
+    }
+  },
+  "function": {
+    "annamCrops123456Function": {
+      "build": true,
+      "dependsOn": [
+        {
+          "attributeEnvMap": {
+            "Arn": "TABLE_ARN",
+            "Name": "TABLE_NAME"
+          },
+          "attributes": [
+            "Name",
+            "Arn"
+          ],
+          "category": "storage",
+          "resourceName": "CropsTable123456"
+        }
+      ],
+      "providerPlugin": "awscloudformation",
+      "service": "Lambda"
+    },
+    "annamUsers123456Function": {
+      "build": true,
+      "dependsOn": [
+        {
+          "attributeEnvMap": {
+            "Arn": "TABLE_ARN",
+            "Name": "TABLE_NAME"
+          },
+          "attributes": [
+            "Name",
+            "Arn"
+          ],
+          "category": "storage",
+          "resourceName": "UsersTable123456"
+        }
+      ],
+      "providerPlugin": "awscloudformation",
+      "service": "Lambda"
+    }
+  },
+  "parameters": {
+    "AMPLIFY_function_annamCrops123456Function_deploymentBucketName": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "annamCrops123456Function"
+        }
+      ]
+    },
+    "AMPLIFY_function_annamCrops123456Function_s3Key": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "annamCrops123456Function"
+        }
+      ]
+    },
+    "AMPLIFY_function_annamUsers123456Function_deploymentBucketName": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "annamUsers123456Function"
+        }
+      ]
+    },
+    "AMPLIFY_function_annamUsers123456Function_s3Key": {
+      "usedBy": [
+        {
+          "category": "function",
+          "resourceName": "annamUsers123456Function"
+        }
+      ]
+    }
+  },
+  "storage": {
+    "CropsTable123456": {
+      "providerPlugin": "awscloudformation",
+      "service": "DynamoDB"
+    },
+    "UsersTable123456": {
+      "providerPlugin": "awscloudformation",
+      "service": "DynamoDB"
+    }
+  }
+}

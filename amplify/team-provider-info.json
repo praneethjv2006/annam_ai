@@ -1,0 +1,38 @@
+{
+  "dev": {
+    "awscloudformation": {
+      "AuthRoleName": "amplify-annamai-dev-71246-authRole",
+      "UnauthRoleArn": "arn:aws:iam::121431344486:role/amplify-annamai-dev-71246-unauthRole",
+      "AuthRoleArn": "arn:aws:iam::121431344486:role/amplify-annamai-dev-71246-authRole",
+      "Region": "us-east-1",
+      "DeploymentBucketName": "amplify-annamai-dev-71246-deployment",
+      "UnauthRoleName": "amplify-annamai-dev-71246-unauthRole",
+      "StackName": "amplify-annamai-dev-71246",
+      "StackId": "arn:aws:cloudformation:us-east-1:121431344486:stack/amplify-annamai-dev-71246/f776c2e0-580d-11f0-bd44-0affe2318eb9",
+      "AmplifyAppId": "d1mf2egmphewrn",
+      "APIGatewayAuthURL": "https://s3.amazonaws.com/amplify-annamai-dev-71246-deployment/amplify-cfn-templates/api/APIGatewayAuthStack.json"
+    },
+    "categories": {
+      "auth": {
+        "annamai1724b4ef": {}
+      },
+      "function": {
+        "annamUsers123456Function": {
+          "deploymentBucketName": "amplify-annamai-dev-71246-deployment",
+          "s3Key": "amplify-builds/annamUsers123456Function-7452656c2f7232696e4c-build.zip"
+        },
+        "annamCrops123456Function": {
+          "deploymentBucketName": "amplify-annamai-dev-71246-deployment",
+          "s3Key": "amplify-builds/annamCrops123456Function-464b727057677652764b-build.zip"
+        }
+      },
+      "storage": {
+        "UsersTable123456": {},
+        "CropsTable123456": {}
+      },
+      "api": {
+        "annamai": {}
+      }
+    }
+  }
+}
