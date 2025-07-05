@@ -136,7 +136,7 @@ class _HomeScreenState extends State<HomeScreen> {
         _isLoadingLocation = false;
       });
 
-      // Get weather data
+      // Get weather data (mock for now)
       await _getWeatherData(position.latitude, position.longitude);
     } catch (e) {
       setState(() {
@@ -147,28 +147,16 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  /// Get weather data from API
+  /// Get weather data (mock implementation)
   Future<void> _getWeatherData(double latitude, double longitude) async {
-    setState(() => _isLoadingWeather = true);
-
     try {
-      final apiKey = 'YOUR_OPENWEATHERMAP_API_KEY';
-      final url =
-          'https://api.openweathermap.org/data/2.5/weather?lat=$latitude&lon=$longitude&units=metric&appid=$apiKey';
-      final response = await http.get(Uri.parse(url));
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        setState(() {
-          _currentTemperature = data['main']['temp']?.toDouble();
-          _isLoadingWeather = false;
-        });
-      } else {
-        setState(() {
-          _currentTemperature = null;
-          _isLoadingWeather = false;
-        });
-      }
+      // For demonstration, using mock temperature
+      // In production, you would call a weather API
+      await Future.delayed(Duration(seconds: 1));
+      setState(() {
+        _currentTemperature = 25.0 + (DateTime.now().hour / 24 * 10);
+        _isLoadingWeather = false;
+      });
     } catch (e) {
       setState(() {
         _currentTemperature = null;
@@ -225,7 +213,9 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Submit form data
   Future<void> _submitForm() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
     if (_capturedImage == null) {
       _showErrorDialog(
@@ -285,11 +275,13 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       );
 
+      // Show success message
       _showSuccessDialog(
         'Data Submitted Successfully',
         'Your crop data has been saved for AI analysis.',
       );
 
+      // Reset form
       _resetForm();
     } catch (e) {
       _showErrorDialog('Submission Failed', 'Failed to submit data: $e');
@@ -546,6 +538,7 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           TextButton(
             onPressed: () {
+              // TODO: Implement profile update
               Navigator.pop(context);
               _showInfoDialog(
                 'Profile Update',
@@ -636,6 +629,7 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: _getCurrentLocationAndWeather,
             tooltip: 'Refresh Location & Weather',
           ),
+          // Profile Icon Button
           Padding(
             padding: EdgeInsets.only(right: 8),
             child: GestureDetector(

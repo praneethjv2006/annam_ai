@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'home_screen.dart';
 import '../services/auth_service.dart';
+import 'otp_verification_screen.dart';
 
 class AuthScreen extends StatefulWidget {
   @override
@@ -96,9 +97,12 @@ class _AuthScreenState extends State<AuthScreen>
       );
 
       if (mounted) {
-        _showSuccessDialog(
-          'Account Created Successfully',
-          'Please check your email for verification code before signing in.',
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (_) =>
+                OtpVerificationScreen(email: _emailController.text.trim()),
+          ),
         );
       }
     } catch (e) {
@@ -162,45 +166,6 @@ class _AuthScreenState extends State<AuthScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text(
-              'OK',
-              style: TextStyle(
-                color: Color(0xFF2E7D32),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  void _showSuccessDialog(String title, String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(
-              Icons.check_circle_outline,
-              color: Color(0xFF2E7D32),
-              size: 24,
-            ),
-            SizedBox(width: 8),
-            Text(
-              title,
-              style: TextStyle(color: Color(0xFF2E7D32), fontSize: 18),
-            ),
-          ],
-        ),
-        content: Text(message, style: TextStyle(fontSize: 16)),
-        actions: [
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _tabController.animateTo(0); // Switch to sign in tab
-            },
             child: Text(
               'OK',
               style: TextStyle(

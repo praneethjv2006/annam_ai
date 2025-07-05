@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as path;
 import 'dart:io';
 
 class CameraScreen extends StatefulWidget {
@@ -11,7 +9,7 @@ class CameraScreen extends StatefulWidget {
 
 class _CameraScreenState extends State<CameraScreen> {
   CameraController? _controller;
-  List<CameraDescription>? cameras;
+  List<CameraDescription>? _cameras;
   bool _isCameraInitialized = false;
   bool _isFlashOn = false;
   int _selectedCameraIndex = 0;
@@ -22,72 +20,71 @@ class _CameraScreenState extends State<CameraScreen> {
     _initializeCamera();
   }
 
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
   Future<void> _initializeCamera() async {
-    cameras = await availableCameras();
-    if (cameras != null && cameras!.isNotEmpty) {
+    _cameras = await availableCameras();
+    if (_cameras != null && _cameras!.isNotEmpty) {
       _controller = CameraController(
-        cameras![_selectedCameraIndex],
+        _cameras![_selectedCameraIndex],
         ResolutionPreset.high,
         enableAudio: false,
       );
-
-      await _controller!.initialize();
-      setState(() {
-        _isCameraInitialized = true;
-      });
+      try {
+        await _controller!.initialize();
+        if (mounted) {
+          setState(() => _isCameraInitialized = true);
+        }
+      } catch (e) {
+        _showError('Camera initialization failed: $e');
+      }
+    } else {
+      _showError('No cameras available');
     }
   }
 
   Future<void> _switchCamera() async {
-    if (cameras != null && cameras!.length > 1) {
-      _selectedCameraIndex = _selectedCameraIndex == 0 ? 1 : 0;
-
-      await _controller?.dispose();
-      _controller = CameraController(
-        cameras![_selectedCameraIndex],
-        ResolutionPreset.high,
-        enableAudio: false,
-      );
-
-      await _controller!.initialize();
-      setState(() {});
-    }
+    if (_cameras == null || _cameras!.length < 2) return;
+    _selectedCameraIndex = (_selectedCameraIndex + 1) % _cameras!.length;
+    await _controller?.dispose();
+    _isCameraInitialized = false;
+    _initializeCamera();
   }
 
   Future<void> _toggleFlash() async {
-    if (_controller != null) {
-      setState(() {
-        _isFlashOn = !_isFlashOn;
-      });
+    if (_controller == null) return;
+    try {
+      _isFlashOn = !_isFlashOn;
       await _controller!.setFlashMode(
         _isFlashOn ? FlashMode.torch : FlashMode.off,
       );
+      setState(() {});
+    } catch (e) {
+      _showError('Failed to toggle flash: $e');
     }
   }
 
   Future<void> _capturePhoto() async {
-    if (_controller != null && _controller!.value.isInitialized) {
-      try {
-        final directory = await getTemporaryDirectory();
-        final imagePath = path.join(
-          directory.path,
-          '${DateTime.now().millisecondsSinceEpoch}.jpg',
-        );
-
-        XFile picture = await _controller!.takePicture();
-        await picture.saveTo(imagePath);
-
-        Navigator.pop(context, File(imagePath));
-      } catch (e) {
-        print('Error capturing photo: $e');
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error capturing photo'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
+    if (_controller == null || !_controller!.value.isInitialized) {
+      _showError('Camera not ready');
+      return;
     }
+    try {
+      final XFile picture = await _controller!.takePicture();
+      Navigator.pop(context, File(picture.path));
+    } catch (e) {
+      _showError('Error capturing image: $e');
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
   }
 
   @override
@@ -97,7 +94,7 @@ class _CameraScreenState extends State<CameraScreen> {
         backgroundColor: Colors.black,
         body: Center(
           child: CircularProgressIndicator(
-            valueColor: AlwaysStoppedAnimation<Color>(Color(0xFF43A047)),
+            valueColor: AlwaysStoppedAnimation(Color(0xFF43A047)),
           ),
         ),
       );
@@ -107,80 +104,36 @@ class _CameraScreenState extends State<CameraScreen> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // Camera Preview
           Positioned.fill(child: CameraPreview(_controller!)),
-
-          // Top Controls
+          // Top controls
           Positioned(
-            top: MediaQuery.of(context).padding.top + 20,
-            left: 20,
-            right: 20,
+            top: MediaQuery.of(context).padding.top + 16,
+            left: 16,
+            right: 16,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                // Back Button
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Container(
-                    padding: EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    child: Icon(
-                      Icons.arrow_back,
-                      color: Colors.white,
-                      size: 24,
-                    ),
-                  ),
+                _buildIconButton(
+                  Icons.arrow_back,
+                  () => Navigator.pop(context),
                 ),
-
-                // Flash Toggle
-                GestureDetector(
-                  onTap: _toggleFlash,
-                  child: Container(
-                    padding: EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    child: Icon(
-                      _isFlashOn ? Icons.flash_on : Icons.flash_off,
-                      color: _isFlashOn ? Color(0xFF43A047) : Colors.white,
-                      size: 24,
-                    ),
-                  ),
+                _buildIconButton(
+                  _isFlashOn ? Icons.flash_on : Icons.flash_off,
+                  _toggleFlash,
+                  color: _isFlashOn ? Color(0xFF43A047) : Colors.white,
                 ),
               ],
             ),
           ),
-
-          // Bottom Controls
+          // Bottom controls
           Positioned(
-            bottom: 50,
+            bottom: 32,
             left: 0,
             right: 0,
             child: Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                // Camera Switch Button
-                GestureDetector(
-                  onTap: _switchCamera,
-                  child: Container(
-                    padding: EdgeInsets.all(15),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withOpacity(0.5),
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                    child: Icon(
-                      Icons.switch_camera,
-                      color: Colors.white,
-                      size: 30,
-                    ),
-                  ),
-                ),
-
-                // Capture Button
+                _buildIconButton(Icons.switch_camera, _switchCamera),
                 GestureDetector(
                   onTap: _capturePhoto,
                   child: Container(
@@ -188,41 +141,18 @@ class _CameraScreenState extends State<CameraScreen> {
                     height: 80,
                     decoration: BoxDecoration(
                       color: Color(0xFF43A047),
-                      borderRadius: BorderRadius.circular(40),
+                      shape: BoxShape.circle,
                       border: Border.all(color: Colors.white, width: 4),
                     ),
                     child: Icon(
                       Icons.camera_alt,
                       color: Colors.white,
-                      size: 35,
+                      size: 36,
                     ),
                   ),
                 ),
-
-                // Placeholder for symmetry
-                Container(width: 60, height: 60),
+                SizedBox(width: 60), // Spacer to balance
               ],
-            ),
-          ),
-
-          // Instructions
-          Positioned(
-            top: MediaQuery.of(context).size.height * 0.7,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Container(
-                padding: EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-                decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.7),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  'Position crop in frame and tap capture',
-                  style: TextStyle(color: Colors.white, fontSize: 16),
-                  textAlign: TextAlign.center,
-                ),
-              ),
             ),
           ),
         ],
@@ -230,9 +160,21 @@ class _CameraScreenState extends State<CameraScreen> {
     );
   }
 
-  @override
-  void dispose() {
-    _controller?.dispose();
-    super.dispose();
+  Widget _buildIconButton(
+    IconData icon,
+    VoidCallback onTap, {
+    Color color = Colors.white,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.black.withOpacity(0.5),
+          shape: BoxShape.circle,
+        ),
+        child: Icon(icon, color: color, size: 28),
+      ),
+    );
   }
 }
