@@ -4,9 +4,10 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'dart:convert';
+import 'dart:io';
+
 import 'camera_screen.dart';
 import 'auth_screen.dart';
-import 'dart:io';
 import '../services/auth_service.dart';
 import '../services/database_service.dart';
 
@@ -172,11 +173,8 @@ class _HomeScreenState extends State<HomeScreen> {
         context,
         MaterialPageRoute(builder: (context) => CameraScreen()),
       );
-
       if (image != null) {
-        setState(() {
-          _capturedImage = image;
-        });
+        setState(() => _capturedImage = image);
       }
     } catch (e) {
       _showErrorDialog('Camera Error', 'Failed to capture image: $e');
@@ -190,19 +188,15 @@ class _HomeScreenState extends State<HomeScreen> {
       initialDate: DateTime.now(),
       firstDate: DateTime(2020),
       lastDate: DateTime.now(),
-      builder: (context, child) {
-        return Theme(
-          data: Theme.of(context).copyWith(
-            primaryColor: Color(0xFF2E7D32),
-            colorScheme: Theme.of(
-              context,
-            ).colorScheme.copyWith(primary: Color(0xFF2E7D32)),
-          ),
-          child: child!,
-        );
-      },
+      builder: (context, child) => Theme(
+        data: Theme.of(context).copyWith(
+          colorScheme: Theme.of(
+            context,
+          ).colorScheme.copyWith(primary: Color(0xFF2E7D32)),
+        ),
+        child: child!,
+      ),
     );
-
     if (picked != null && picked != _selectedPlantingDate) {
       setState(() {
         _selectedPlantingDate = picked;
@@ -213,10 +207,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   /// Submit form data
   Future<void> _submitForm() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
+    if (!_formKey.currentState!.validate()) return;
     if (_capturedImage == null) {
       _showErrorDialog(
         'Image Required',
@@ -224,7 +215,6 @@ class _HomeScreenState extends State<HomeScreen> {
       );
       return;
     }
-
     if (_selectedPlantingDate == null) {
       _showErrorDialog('Date Required', 'Please select the planting date.');
       return;
@@ -233,25 +223,6 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() => _isSubmitting = true);
 
     try {
-      // Prepare crop data
-      final cropData = {
-        'farmerName': _nameController.text.trim(),
-        'userType': _selectedUserType,
-        'location': _currentLocation,
-        'temperature': _currentTemperature,
-        'cropType': _selectedCropType!,
-        'plantingDate': _plantingDateController.text,
-        'imagePath': _capturedImage!.path,
-        'additionalNotes': _additionalNotesController.text.trim(),
-        'gpsCoordinates': _currentPosition != null
-            ? '${_currentPosition!.latitude},${_currentPosition!.longitude}'
-            : null,
-        'weather': _currentTemperature != null
-            ? {'temperature': _currentTemperature, 'unit': 'Celsius'}
-            : null,
-      };
-
-      // Save to database
       await DatabaseService().saveCropData(
         farmerName: _nameController.text.trim(),
         userType: _selectedUserType,
@@ -274,16 +245,14 @@ class _HomeScreenState extends State<HomeScreen> {
           },
         },
       );
-
-      // Show success message
       _showSuccessDialog(
         'Data Submitted Successfully',
         'Your crop data has been saved for AI analysis.',
       );
-
-      // Reset form
       _resetForm();
-    } catch (e) {
+    } catch (e, st) {
+      print('SAVE ERROR: $e');
+      print(st);
       _showErrorDialog('Submission Failed', 'Failed to submit data: $e');
     } finally {
       setState(() => _isSubmitting = false);
@@ -299,6 +268,106 @@ class _HomeScreenState extends State<HomeScreen> {
       _plantingDateController.clear();
       _additionalNotesController.clear();
     });
+  }
+
+  /// Show error dialog
+  void _showErrorDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.error_outline, color: Colors.red, size: 24),
+            SizedBox(width: 8),
+            Text(title, style: TextStyle(color: Colors.red, fontSize: 18)),
+          ],
+        ),
+        content: Text(message, style: TextStyle(fontSize: 16)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'OK',
+              style: TextStyle(
+                color: Color(0xFF2E7D32),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Show success dialog
+  void _showSuccessDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(
+              Icons.check_circle_outline,
+              color: Color(0xFF2E7D32),
+              size: 24,
+            ),
+            SizedBox(width: 8),
+            Text(
+              title,
+              style: TextStyle(color: Color(0xFF2E7D32), fontSize: 18),
+            ),
+          ],
+        ),
+        content: Text(message, style: TextStyle(fontSize: 16)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'OK',
+              style: TextStyle(
+                color: Color(0xFF2E7D32),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Show info dialog
+  void _showInfoDialog(String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.info_outline, color: Color(0xFF2E7D32), size: 24),
+            SizedBox(width: 8),
+            Text(
+              title,
+              style: TextStyle(color: Color(0xFF2E7D32), fontSize: 18),
+            ),
+          ],
+        ),
+        content: Text(message, style: TextStyle(fontSize: 16)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(
+              'OK',
+              style: TextStyle(
+                color: Color(0xFF2E7D32),
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   /// Show profile menu
@@ -380,7 +449,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
                 SizedBox(height: 32),
 
-                // Profile Options
                 _buildProfileOption(
                   icon: Icons.edit,
                   title: 'Edit Profile',
@@ -427,7 +495,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 SizedBox(height: 24),
 
-                // Logout Button
                 Container(
                   width: double.infinity,
                   child: ElevatedButton.icon(
@@ -538,7 +605,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           TextButton(
             onPressed: () {
-              // TODO: Implement profile update
               Navigator.pop(context);
               _showInfoDialog(
                 'Profile Update',
@@ -629,7 +695,6 @@ class _HomeScreenState extends State<HomeScreen> {
             onPressed: _getCurrentLocationAndWeather,
             tooltip: 'Refresh Location & Weather',
           ),
-          // Profile Icon Button
           Padding(
             padding: EdgeInsets.only(right: 8),
             child: GestureDetector(
@@ -694,7 +759,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               SizedBox(height: 24),
 
-              // Location and Weather Section
+              // Location & Weather Section
               Container(
                 width: double.infinity,
                 padding: EdgeInsets.all(16),
@@ -715,7 +780,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     ),
                     SizedBox(height: 12),
-
                     Row(
                       children: [
                         Icon(
@@ -738,7 +802,6 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                     SizedBox(height: 8),
-
                     Row(
                       children: [
                         Icon(
@@ -932,8 +995,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ),
               SizedBox(height: 16),
-
-              // Image Capture Button
               Container(
                 width: double.infinity,
                 height: 200,
@@ -1067,106 +1128,6 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
-      ),
-    );
-  }
-
-  /// Show error dialog
-  void _showErrorDialog(String title, String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(Icons.error_outline, color: Colors.red, size: 24),
-            SizedBox(width: 8),
-            Text(title, style: TextStyle(color: Colors.red, fontSize: 18)),
-          ],
-        ),
-        content: Text(message, style: TextStyle(fontSize: 16)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'OK',
-              style: TextStyle(
-                color: Color(0xFF2E7D32),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Show success dialog
-  void _showSuccessDialog(String title, String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(
-              Icons.check_circle_outline,
-              color: Color(0xFF2E7D32),
-              size: 24,
-            ),
-            SizedBox(width: 8),
-            Text(
-              title,
-              style: TextStyle(color: Color(0xFF2E7D32), fontSize: 18),
-            ),
-          ],
-        ),
-        content: Text(message, style: TextStyle(fontSize: 16)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'OK',
-              style: TextStyle(
-                color: Color(0xFF2E7D32),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// Show info dialog
-  void _showInfoDialog(String title, String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Row(
-          children: [
-            Icon(Icons.info_outline, color: Color(0xFF2E7D32), size: 24),
-            SizedBox(width: 8),
-            Text(
-              title,
-              style: TextStyle(color: Color(0xFF2E7D32), fontSize: 18),
-            ),
-          ],
-        ),
-        content: Text(message, style: TextStyle(fontSize: 16)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text(
-              'OK',
-              style: TextStyle(
-                color: Color(0xFF2E7D32),
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
       ),
     );
   }

@@ -1,8 +1,11 @@
 import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:http/http.dart' as http;
 import 'package:amplify_flutter/amplify_flutter.dart';
-import 'package:uuid/uuid.dart';
+import 'package:amplify_api/amplify_api.dart';
 import 'package:amplify_auth_cognito/amplify_auth_cognito.dart';
+import 'package:uuid/uuid.dart';
 
 class DatabaseService {
   static final DatabaseService _instance = DatabaseService._internal();
@@ -66,26 +69,26 @@ class DatabaseService {
     required String email,
     required String name,
   }) async {
-    try {
-      final now = DateTime.now().toIso8601String();
-      final userData = {
-        'userId': userId,
-        'username': username,
-        'email': email,
-        'name': name,
-        'createdAt': now,
-        'updatedAt': now,
-        'userType': 'farmer',
-        'isActive': true,
-        'profileComplete': false,
-        'totalCropsUploaded': 0,
-        'lastLoginAt': now,
-        'location': null,
-        'farmSize': null,
-        'phoneNumber': null,
-        'address': null,
-      };
+    final now = DateTime.now().toIso8601String();
+    final userData = {
+      'userId': userId,
+      'username': username,
+      'email': email,
+      'name': name,
+      'createdAt': now,
+      'updatedAt': now,
+      'userType': 'farmer',
+      'isActive': true,
+      'profileComplete': false,
+      'totalCropsUploaded': 0,
+      'lastLoginAt': now,
+      'location': null,
+      'farmSize': null,
+      'phoneNumber': null,
+      'address': null,
+    };
 
+    try {
       final response = await http.post(
         Uri.parse('$baseUrl/users'),
         headers: {
@@ -94,18 +97,15 @@ class DatabaseService {
         },
         body: json.encode(userData),
       );
-
-      if (response.statusCode == 201 || response.statusCode == 200) {
+      if (response.statusCode == 200 || response.statusCode == 201) {
         print('User created successfully in database');
       } else {
         print(
           'Failed to create user: ${response.statusCode} - ${response.body}',
         );
-        // Don't throw here as this is not critical for signup
       }
     } catch (e) {
       print('Error creating user in database: $e');
-      // Don't throw here as this is not critical for signup
     }
   }
 
@@ -117,10 +117,8 @@ class DatabaseService {
     required String name,
   }) async {
     try {
-      // First try to get user profile
       final existingUser = await getUserProfile();
       if (existingUser == null) {
-        // User doesn't exist, create them
         await createUser(
           userId: userId,
           username: username,
@@ -130,7 +128,6 @@ class DatabaseService {
       }
     } catch (e) {
       print('Error ensuring user exists: $e');
-      // Try to create user anyway
       await createUser(
         userId: userId,
         username: username,
@@ -142,14 +139,14 @@ class DatabaseService {
 
   /// Update user's last login timestamp
   Future<void> updateUserLastLogin() async {
+    final token = await _getAuthToken();
+    final userId = await _getCurrentUserId();
+    if (userId == null) return;
+
+    final now = DateTime.now().toIso8601String();
+    final updateData = {'lastLoginAt': now, 'updatedAt': now};
+
     try {
-      final token = await _getAuthToken();
-      final userId = await _getCurrentUserId();
-      if (userId == null) return;
-
-      final now = DateTime.now().toIso8601String();
-      final updateData = {'lastLoginAt': now, 'updatedAt': now};
-
       final response = await http.patch(
         Uri.parse('$baseUrl/users/$userId'),
         headers: {
@@ -159,7 +156,6 @@ class DatabaseService {
         },
         body: json.encode(updateData),
       );
-
       if (response.statusCode == 200) {
         print('User last login updated successfully');
       } else {
@@ -172,11 +168,11 @@ class DatabaseService {
 
   /// Delete user profile
   Future<void> deleteUserProfile() async {
-    try {
-      final token = await _getAuthToken();
-      final userId = await _getCurrentUserId();
-      if (userId == null) return;
+    final token = await _getAuthToken();
+    final userId = await _getCurrentUserId();
+    if (userId == null) return;
 
+    try {
       final response = await http.delete(
         Uri.parse('$baseUrl/users/$userId'),
         headers: {
@@ -185,7 +181,6 @@ class DatabaseService {
           'Authorization': 'Bearer $token',
         },
       );
-
       if (response.statusCode == 200) {
         print('User profile deleted successfully');
       }
@@ -194,7 +189,7 @@ class DatabaseService {
     }
   }
 
-  /// Save crop data with comprehensive information
+  /// Save crop data with Amplify REST API (handles SigV4 & CORS)
   Future<void> saveCropData({
     required String farmerName,
     required String userType,
@@ -206,51 +201,47 @@ class DatabaseService {
     String? additionalNotes,
     Map<String, dynamic>? additionalData,
   }) async {
+    final now = DateTime.now().toIso8601String();
+    final userId = await _getCurrentUserId();
+    if (userId == null) throw Exception('User not authenticated');
+
+    final username = await _getCurrentUsername() ?? 'unknown';
+    final payload = {
+      'cropId': _uuid.v4(),
+      'userId': userId,
+      'username': username,
+      'farmerName': farmerName,
+      'userType': userType,
+      'location': location,
+      'temperature': temperature,
+      'cropType': cropType,
+      'plantingDate': plantingDate,
+      'imagePath': imagePath,
+      'additionalNotes': additionalNotes ?? '',
+      'createdAt': now,
+      'updatedAt': now,
+      'status': 'active',
+      'analysisStatus': 'pending',
+      'uploadedAt': now,
+      'season': _getCurrentSeason(),
+      'additionalData': additionalData ?? {},
+    };
+
     try {
-      final token = await _getAuthToken();
-      final userId = await _getCurrentUserId();
-      final username = await _getCurrentUsername() ?? 'unknown';
-
-      if (userId == null) throw Exception('User not authenticated');
-
-      final now = DateTime.now().toIso8601String();
-      final cropData = {
-        'cropId': _uuid.v4(),
-        'userId': userId,
-        'username': username,
-        'farmerName': farmerName,
-        'userType': userType,
-        'location': location,
-        'temperature': temperature,
-        'cropType': cropType,
-        'plantingDate': plantingDate,
-        'imagePath': imagePath,
-        'additionalNotes': additionalNotes ?? '',
-        'createdAt': now,
-        'updatedAt': now,
-        'status': 'active',
-        'analysisStatus': 'pending',
-        'uploadedAt': now,
-        'season': _getCurrentSeason(),
-        'additionalData': additionalData ?? {},
-      };
-
-      final response = await http.post(
-        Uri.parse('$baseUrl/crops'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: json.encode(cropData),
+      final restOperation = Amplify.API.post(
+        '/crops123456',
+        apiName: 'annamai',
+        body: HttpPayload.json(payload),
+        headers: {'Content-Type': 'application/json'},
       );
+      final response = await restOperation.response;
 
-      if (response.statusCode == 201 || response.statusCode == 200) {
-        print('Crop data saved successfully');
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        print('Crop data saved via Amplify.API');
         await _updateUserCropCount(userId);
       } else {
         throw Exception(
-          'Failed to save crop data: ${response.statusCode} - ${response.body}',
+          'Amplify.API failed: ${response.statusCode} – ${response.body}',
         );
       }
     } catch (e) {
@@ -261,16 +252,15 @@ class DatabaseService {
 
   /// Update user's crop count
   Future<void> _updateUserCropCount(String userId) async {
+    final token = await _getAuthToken();
+    final now = DateTime.now().toIso8601String();
+    final updateData = {
+      'lastActivityAt': now,
+      'updatedAt': now,
+      'incrementCropCount': true,
+    };
+
     try {
-      final token = await _getAuthToken();
-      final now = DateTime.now().toIso8601String();
-
-      final updateData = {
-        'lastActivityAt': now,
-        'updatedAt': now,
-        'incrementCropCount': true,
-      };
-
       final response = await http.patch(
         Uri.parse('$baseUrl/users/$userId/increment-crop-count'),
         headers: {
@@ -280,7 +270,6 @@ class DatabaseService {
         },
         body: json.encode(updateData),
       );
-
       if (response.statusCode == 200) {
         print('User crop count updated successfully');
       }
@@ -294,14 +283,14 @@ class DatabaseService {
     int limit = 20,
     String? lastCropId,
   }) async {
+    final token = await _getAuthToken();
+    final userId = await _getCurrentUserId();
+    if (userId == null) throw Exception('User not authenticated');
+
+    var url = '$baseUrl/crops/user/$userId?limit=$limit';
+    if (lastCropId != null) url += '&lastCropId=$lastCropId';
+
     try {
-      final token = await _getAuthToken();
-      final userId = await _getCurrentUserId();
-      if (userId == null) throw Exception('User not authenticated');
-
-      var url = '$baseUrl/crops/user/$userId?limit=$limit';
-      if (lastCropId != null) url += '&lastCropId=$lastCropId';
-
       final response = await http.get(
         Uri.parse(url),
         headers: {
@@ -310,7 +299,6 @@ class DatabaseService {
           'Accept': 'application/json',
         },
       );
-
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
         if (data is List) {
@@ -332,11 +320,11 @@ class DatabaseService {
 
   /// Get user profile data
   Future<Map<String, dynamic>?> getUserProfile() async {
-    try {
-      final token = await _getAuthToken();
-      final userId = await _getCurrentUserId();
-      if (userId == null) throw Exception('User not authenticated');
+    final token = await _getAuthToken();
+    final userId = await _getCurrentUserId();
+    if (userId == null) throw Exception('User not authenticated');
 
+    try {
       final response = await http.get(
         Uri.parse('$baseUrl/users/$userId'),
         headers: {
@@ -345,7 +333,6 @@ class DatabaseService {
           'Accept': 'application/json',
         },
       );
-
       if (response.statusCode == 200) {
         return json.decode(response.body) as Map<String, dynamic>;
       } else if (response.statusCode == 404) {
@@ -370,22 +357,22 @@ class DatabaseService {
     String? userType,
     Map<String, dynamic>? additionalData,
   }) async {
+    final token = await _getAuthToken();
+    final userId = await _getCurrentUserId();
+    if (userId == null) throw Exception('User not authenticated');
+
+    final updateData = {
+      'name': name,
+      'phone': phone,
+      'address': address,
+      'farmSize': farmSize,
+      'userType': userType ?? 'farmer',
+      'updatedAt': DateTime.now().toIso8601String(),
+      'profileComplete': true,
+      'additionalData': additionalData ?? {},
+    };
+
     try {
-      final token = await _getAuthToken();
-      final userId = await _getCurrentUserId();
-      if (userId == null) throw Exception('User not authenticated');
-
-      final updateData = {
-        'name': name,
-        'phone': phone,
-        'address': address,
-        'farmSize': farmSize,
-        'userType': userType ?? 'farmer',
-        'updatedAt': DateTime.now().toIso8601String(),
-        'profileComplete': true,
-        'additionalData': additionalData ?? {},
-      };
-
       final response = await http.patch(
         Uri.parse('$baseUrl/users/$userId'),
         headers: {
@@ -395,7 +382,6 @@ class DatabaseService {
         },
         body: json.encode(updateData),
       );
-
       if (response.statusCode == 200) {
         print('User profile updated successfully');
       } else {
@@ -411,11 +397,11 @@ class DatabaseService {
 
   /// Delete crop data
   Future<void> deleteCropData(String cropId) async {
-    try {
-      final token = await _getAuthToken();
-      final userId = await _getCurrentUserId();
-      if (userId == null) throw Exception('User not authenticated');
+    final token = await _getAuthToken();
+    final userId = await _getCurrentUserId();
+    if (userId == null) throw Exception('User not authenticated');
 
+    try {
       final response = await http.delete(
         Uri.parse('$baseUrl/crops/$cropId'),
         headers: {
@@ -424,7 +410,6 @@ class DatabaseService {
           'Accept': 'application/json',
         },
       );
-
       if (response.statusCode == 200) {
         print('Crop data deleted successfully');
       } else {
@@ -440,11 +425,11 @@ class DatabaseService {
 
   /// Get crop analytics/statistics
   Future<Map<String, dynamic>?> getCropAnalytics() async {
-    try {
-      final token = await _getAuthToken();
-      final userId = await _getCurrentUserId();
-      if (userId == null) throw Exception('User not authenticated');
+    final token = await _getAuthToken();
+    final userId = await _getCurrentUserId();
+    if (userId == null) throw Exception('User not authenticated');
 
+    try {
       final response = await http.get(
         Uri.parse('$baseUrl/crops/analytics/$userId'),
         headers: {
@@ -453,7 +438,6 @@ class DatabaseService {
           'Accept': 'application/json',
         },
       );
-
       if (response.statusCode == 200) {
         return json.decode(response.body) as Map<String, dynamic>;
       } else {
